@@ -45,7 +45,7 @@ export const SignInButton = () => {
             Sign In with Google
           </Button>
           <Typography variant="body2">
-            Don&post have an account?
+            Don&apos;t have an account?
             <Button color="primary">
               {" "}
               <Link href="/register">Register</Link>

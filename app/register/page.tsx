@@ -1,98 +1,127 @@
 "use client";
-import React, { useState } from "react";
-import { Typography, TextField, Button, Stack } from "@mui/material";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "../firebase"; // Ensure this path points to your Firebase config
+import { useAuth } from "@/context/AuthContext";
+import { signOut } from "@firebase/auth";
+import { useRouter } from "next/navigation";
+import {
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  serverTimestamp,
+  onSnapshot,
+} from "firebase/firestore";
+import { db, auth } from "../firebase";
+import { Button, TextField, Stack, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-const Register = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [repeatPassword, setReapeatPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [error, setError] = useState("");
-  const [repeatPasswordError, setRepeatPasswordError] = useState("");
-  const handleRegister = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError(""); // Reset error before new attempt
+export default function Home() {
+  const { user } = useAuth(); // Access authentication state
+  const router = useRouter();
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
 
-    try {
-      // Register user with email and password
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
+  const handleSignOut = async () => {
+    await signOut(auth); // Sign out user
+    router.push("/login"); // Redirect to login page
+  };
 
-      // Optionally, update the display name
-      await updateProfile(user, { displayName });
+  useEffect(() => {
+    const messagesRef = collection(db, "messages");
+    const q = query(messagesRef, orderBy("timestamp"));
 
-      console.log("User registered:", user);
-      // Redirect to another page or clear the form here if needed
-    } catch (error: any) {
-      console.error("Registration error:", error.message);
-      setError(error.message);
+    // Listen for real-time updates
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(msgs);
+    });
+
+    return unsubscribe; // Cleanup on component unmount
+  }, []);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMessage.trim()) {
+      try {
+        await addDoc(collection(db, "messages"), {
+          text: newMessage,
+          userId: user?.uid,
+          userEmail: user?.email, // Store user email for display
+          timestamp: serverTimestamp(),
+        });
+        setNewMessage("");
+      } catch (error) {
+        console.error("Error sending message: ", error);
+      }
     }
   };
 
   return (
-    <Stack spacing={2} alignItems="center">
-      <Typography variant="h3">Register</Typography>
-
-      <form onSubmit={handleRegister}>
-        <Stack spacing={2} width="300px">
-          <TextField
-            label="Name"
-            variant="outlined"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            required
-          />
-          <TextField
-            label="Email"
-            variant="outlined"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <TextField
-            label="Password"
-            variant="outlined"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-
-          <TextField
-            label=" Repeat Password"
-            variant="outlined"
-            type="password"
-            value={repeatPassword}
-            onChange={(e) => setReapeatPassword(e.target.value)}
-            required
-          />
-
-          {error && (
-            <Typography color="error" variant="body2">
-              {repeatPasswordError}
-            </Typography>
-          )}
-
-          <Button variant="contained" color="primary" type="submit">
-            Register
+    <div>
+      {user ? (
+        <>
+          <h1>Welcome, {user.email}</h1>
+          <Button variant="contained" color="secondary" onClick={handleSignOut}>
+            Sign Out
           </Button>
-        </Stack>
-      </form>
-    </Stack>
-  );
-};
 
-export default Register;
+          <Stack
+            spacing={2}
+            sx={{ width: "100%", maxWidth: 500, mx: "auto", mt: 4 }}
+          >
+            <Typography variant="h4" align="center">
+              Chat Room
+            </Typography>
+            <Stack
+              spacing={1}
+              sx={{
+                height: "300px",
+                overflowY: "scroll",
+                border: "1px solid #ddd",
+                padding: 2,
+                borderRadius: 1,
+              }}
+            >
+              {messages.map((message) => (
+                <div key={message.id}>
+                  <Typography
+                    variant="body2"
+                    color={
+                      message.userId === user?.uid ? "primary" : "textSecondary"
+                    }
+                  >
+                    {message.userEmail || "User"}: {message.text}
+                  </Typography>
+                </div>
+              ))}
+            </Stack>
+
+            <form onSubmit={handleSendMessage}>
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  fullWidth
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                />
+                <Button variant="contained" type="submit">
+                  Send
+                </Button>
+              </Stack>
+            </form>
+          </Stack>
+        </>
+      ) : (
+        <>
+          <h1>Please log in</h1>{" "}
+          <Button variant="contained">
+            <Link href="/login">Click Here to Login</Link>
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}

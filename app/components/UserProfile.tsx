@@ -1,6 +1,6 @@
 "use client";
 import { useAuth } from "../../context/AuthContext";
-import image from "../../public/image.png";
+// import image from "../../public/image.png";
 export const UserProfile = () => {
   const { user } = useAuth();
 
@@ -9,7 +9,7 @@ export const UserProfile = () => {
   return (
     <div>
       <p>Welcome, {user.displayName}!</p>
-      <img src={user.photoURL || image} alt="User Profile" />
+      {/* <img src={user.photoURL || image} alt="User Profile" /> */}
     </div>
   );
 };

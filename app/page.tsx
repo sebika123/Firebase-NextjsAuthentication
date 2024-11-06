@@ -1,12 +1,10 @@
-// app/page.tsx
-
 import { AuthProvider } from "../context/AuthContext";
-import AuthButton from "./components";
+import LoginPage from "./login/page";
 export default function Home() {
   return (
     <AuthProvider>
       <main>
-        <AuthButton />
+        <LoginPage />
       </main>
     </AuthProvider>
   );
